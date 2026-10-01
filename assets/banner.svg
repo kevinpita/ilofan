@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="200" viewBox="0 0 820 200" role="img" aria-label="ilofan: quiet, verified fan control for HPE iLO 4">
+  <style>
+    .fg { fill: #1f2328; }
+    .muted { fill: #59636e; }
+    .accent { fill: #0969da; }
+    .housing { fill: none; stroke: #1f2328; stroke-width: 6; }
+    .hub { fill: #1f2328; }
+    .blades {
+      transform-origin: 100px 100px;
+      animation: spin 6s cubic-bezier(.45, 0, .55, 1) infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      50% { transform: rotate(1440deg); }
+      100% { transform: rotate(1800deg); }
+    }
+    .bar { animation: level 6s cubic-bezier(.45, 0, .55, 1) infinite; transform-origin: 0 0; }
+    @keyframes level {
+      0%, 100% { transform: scaleX(.09); }
+      50% { transform: scaleX(.4); }
+    }
+    @media (prefers-color-scheme: dark) {
+      .fg { fill: #e6edf3; }
+      .muted { fill: #9198a1; }
+      .accent { fill: #4493f8; }
+      .housing { stroke: #e6edf3; }
+      .hub { fill: #e6edf3; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .blades, .bar { animation: none; }
+    }
+  </style>
+
+  <rect class="housing" x="20" y="20" width="160" height="160" rx="22"/>
+  <circle class="housing" cx="100" cy="100" r="68" stroke-width="3"/>
+  <g class="muted">
+    <circle cx="38" cy="38" r="5"/><circle cx="162" cy="38" r="5"/>
+    <circle cx="38" cy="162" r="5"/><circle cx="162" cy="162" r="5"/>
+  </g>
+  <g class="blades accent">
+    <path id="blade" d="M100 100 C 104 74, 128 46, 152 58 C 160 70, 134 92, 100 100 Z"/>
+    <use href="#blade" transform="rotate(72 100 100)"/>
+    <use href="#blade" transform="rotate(144 100 100)"/>
+    <use href="#blade" transform="rotate(216 100 100)"/>
+    <use href="#blade" transform="rotate(288 100 100)"/>
+  </g>
+  <circle class="hub" cx="100" cy="100" r="14"/>
+
+  <text class="fg" x="220" y="98" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="64" font-weight="700">ilofan</text>
+  <text class="muted" x="222" y="134" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="20">Quiet, verified fan control for HPE iLO 4</text>
+
+  <g transform="translate(222 152)">
+    <rect class="muted" width="420" height="10" rx="5" opacity=".25"/>
+    <rect class="accent bar" width="420" height="10" rx="5"/>
+  </g>
+</svg>

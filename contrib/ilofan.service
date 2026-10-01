@@ -1,0 +1,28 @@
+[Unit]
+Description=iLO 4 fan control
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/ilofan daemon -config /etc/ilofan/config.json
+User=ilofan
+Group=ilofan
+# The daemon reads this instead of passwordFile, so the file can stay root-only.
+LoadCredential=password:/etc/ilofan/password
+RuntimeDirectory=ilofan
+RuntimeDirectoryMode=0750
+Restart=on-failure
+RestartSec=10
+# Leaves time to release the fans to firmware control on stop.
+TimeoutStopSec=60
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="290" viewBox="0 0 840 290" role="img" aria-label="The ilofan CLI talks to the daemon over a Unix socket, Prometheus scrapes its metrics, and the daemon reads sensors from iLO 4 over Redfish and writes fan locks over SSH">
+  <style>
+    text { font-family: -apple-system, Segoe UI, Helvetica, Arial, sans-serif; }
+    .title { font-size: 17px; font-weight: 600; fill: #1f2328; }
+    .sub { font-size: 13px; fill: #59636e; }
+    .label { font-size: 13px; font-weight: 600; fill: #1f2328; }
+    .code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; fill: #59636e; }
+    .box { fill: #f6f8fa; stroke: #d1d9e0; stroke-width: 1.5; }
+    .main { fill: #ddf4ff; stroke: #0969da; stroke-width: 2.5; }
+    .wire { fill: none; stroke: #818b98; stroke-width: 2; }
+    .head { fill: #818b98; }
+    .read { fill: #1a7f37; }
+    .write { fill: #0969da; }
+    .fan { fill: #0969da; }
+    .ring { fill: none; stroke: #59636e; stroke-width: 2; }
+    .hub { fill: #1f2328; }
+    @media (prefers-color-scheme: dark) {
+      .title, .label { fill: #e6edf3; }
+      .sub, .code { fill: #9198a1; }
+      .box { fill: #151b23; stroke: #3d444d; }
+      .main { fill: #0c2d6b; stroke: #4493f8; }
+      .wire { stroke: #656c76; }
+      .head { fill: #656c76; }
+      .read { fill: #3fb950; }
+      .write, .fan { fill: #4493f8; }
+      .ring { stroke: #9198a1; }
+      .hub { fill: #e6edf3; }
+    }
+  </style>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="head" d="M0 0 L10 5 L0 10 Z"/>
+    </marker>
+    <path id="blade" d="M0 0 C 2 -9, 9 -17, 16 -13 C 17 -8, 9 -2, 0 0 Z"/>
+    <g id="fan">
+      <circle class="ring" r="22"/>
+      <g class="fan">
+        <use href="#blade"/>
+        <use href="#blade" transform="rotate(90)"/>
+        <use href="#blade" transform="rotate(180)"/>
+        <use href="#blade" transform="rotate(270)"/>
+        <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="1.6s" repeatCount="indefinite"/>
+      </g>
+      <circle class="hub" r="4"/>
+    </g>
+  </defs>
+
+  <!-- clients -->
+  <rect class="box" x="20" y="30" width="190" height="80" rx="12"/>
+  <text class="title" x="115" y="64" text-anchor="middle">ilofan CLI</text>
+  <text class="code" x="115" y="88" text-anchor="middle">status · set · auto</text>
+
+  <rect class="box" x="20" y="180" width="190" height="80" rx="12"/>
+  <text class="title" x="115" y="214" text-anchor="middle">Prometheus</text>
+  <text class="code" x="115" y="238" text-anchor="middle">GET /metrics</text>
+
+  <!-- daemon -->
+  <rect class="main" x="290" y="70" width="210" height="150" rx="14"/>
+  <text class="title" x="395" y="114" text-anchor="middle">ilofan daemon</text>
+  <text class="sub" x="395" y="146" text-anchor="middle">fan curves + safety rules</text>
+  <text class="sub" x="395" y="168" text-anchor="middle">one writer, verified writes</text>
+  <text class="code" x="395" y="196" text-anchor="middle">poll every 15 s</text>
+
+  <!-- iLO -->
+  <rect class="box" x="650" y="70" width="170" height="150" rx="14"/>
+  <text class="title" x="735" y="102" text-anchor="middle">iLO 4</text>
+  <use href="#fan" x="698" y="152"/>
+  <use href="#fan" x="772" y="152"/>
+  <text class="code" x="698" y="198" text-anchor="middle">Fan 1</text>
+  <text class="code" x="772" y="198" text-anchor="middle">Fan 2</text>
+
+  <!-- wires -->
+  <path id="w-cli" class="wire" d="M210 70 C 252 70, 248 115, 288 115" marker-end="url(#arrow)"/>
+  <text class="label" x="250" y="58" text-anchor="middle">Unix socket</text>
+
+  <path id="w-prom" class="wire" d="M210 220 C 252 220, 248 175, 288 175" marker-end="url(#arrow)"/>
+  <text class="label" x="250" y="248" text-anchor="middle">metrics</text>
+
+  <path id="w-read" class="wire" d="M650 118 L 502 118" marker-end="url(#arrow)"/>
+  <text class="label" x="576" y="106" text-anchor="middle">Redfish · HTTPS</text>
+  <text class="code" x="576" y="138" text-anchor="middle">temps + fan %</text>
+
+  <path id="w-write" class="wire" d="M500 172 L 648 172" marker-end="url(#arrow)"/>
+  <text class="label" x="576" y="162" text-anchor="middle">SSH shell</text>
+  <text class="code" x="576" y="192" text-anchor="middle">fan p 0/1 lock PWM</text>
+
+  <!-- packets -->
+  <circle class="write" r="5"><animateMotion dur="3s" repeatCount="indefinite"><mpath href="#w-cli"/></animateMotion></circle>
+  <circle class="read" r="5"><animateMotion dur="3s" begin="1.5s" repeatCount="indefinite"><mpath href="#w-prom"/></animateMotion></circle>
+  <circle class="read" r="5"><animateMotion dur="2s" repeatCount="indefinite"><mpath href="#w-read"/></animateMotion></circle>
+  <circle class="write" r="5"><animateMotion dur="2s" begin="1s" repeatCount="indefinite"><mpath href="#w-write"/></animateMotion></circle>
+</svg>
