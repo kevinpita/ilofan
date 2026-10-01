@@ -15,6 +15,9 @@ type Config struct {
 	Host         string `json:"host"`
 	Username     string `json:"username"`
 	PasswordFile string `json:"passwordFile"`
+	// passwordFromSystemd marks a credential whose access systemd already
+	// restricts to this service.
+	passwordFromSystemd bool
 	// HostKey is the iLO SSH public key, e.g. "ssh-rsa AAAA...".
 	HostKey        string `json:"hostKey"`
 	TLSFingerprint string `json:"tlsFingerprint"`
@@ -96,7 +99,7 @@ func loadConfig(path string) (*Config, error) {
 	// Under systemd, a credential named "password" wins over passwordFile.
 	if dir := os.Getenv("CREDENTIALS_DIRECTORY"); dir != "" {
 		if cred := filepath.Join(dir, "password"); fileExists(cred) {
-			c.PasswordFile = cred
+			c.PasswordFile, c.passwordFromSystemd = cred, true
 		}
 	}
 	return &c, c.validate()

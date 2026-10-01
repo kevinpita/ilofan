@@ -43,12 +43,14 @@ type ILO struct {
 	host         string
 	username     string
 	passwordFile string
-	hostKey      ssh.PublicKey
-	http         *http.Client
+	// checkMode rejects password files that other users can read.
+	checkMode bool
+	hostKey   ssh.PublicKey
+	http      *http.Client
 }
 
 func newILO(c *Config) (*ILO, error) {
-	i := &ILO{host: c.Host, username: c.Username, passwordFile: c.PasswordFile}
+	i := &ILO{host: c.Host, username: c.Username, passwordFile: c.PasswordFile, checkMode: !c.passwordFromSystemd}
 	if c.HostKey != "" {
 		key, _, _, _, err := ssh.ParseAuthorizedKey([]byte(c.HostKey))
 		if err != nil {
@@ -83,7 +85,7 @@ func (i *ILO) password() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if info.Mode().Perm()&0o077 != 0 {
+	if i.checkMode && info.Mode().Perm()&0o077 != 0 {
 		return "", fmt.Errorf("%s must not be readable by group or others (mode %o)", i.passwordFile, info.Mode().Perm())
 	}
 	data, err := os.ReadFile(i.passwordFile)

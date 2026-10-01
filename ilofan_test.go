@@ -334,7 +334,7 @@ func TestRequestsAreSerialized(t *testing.T) {
 
 func TestPasswordFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "password")
-	i := &ILO{passwordFile: path}
+	i := &ILO{passwordFile: path, checkMode: true}
 	read := func(content string, mode os.FileMode) (string, error) {
 		os.WriteFile(path, []byte(content), 0o600)
 		os.Chmod(path, mode)
@@ -428,20 +428,28 @@ func TestWriteSetup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("written config does not load: %v", err)
 	}
-	if got, err := (&ILO{passwordFile: c.PasswordFile}).password(); got != "hunter2" || err != nil {
+	if got, err := (&ILO{passwordFile: c.PasswordFile, checkMode: true}).password(); got != "hunter2" || err != nil {
 		t.Fatalf("password file reads %q, %v", got, err)
 	}
 }
 
 func TestSystemdCredentialWins(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "password"), []byte("x"), 0o400)
+	// System services get credentials with mode 0440.
+	os.WriteFile(filepath.Join(dir, "password"), []byte("x\n"), 0o440)
 	t.Setenv("CREDENTIALS_DIRECTORY", dir)
 	path := filepath.Join(dir, "config.json")
 	os.WriteFile(path, []byte(`{"host":"ilo","username":"u","insecureTLS":true}`), 0o600)
 	c, err := loadConfig(path)
 	if err != nil || c.PasswordFile != filepath.Join(dir, "password") {
 		t.Fatalf("credential not used: %v %+v", err, c)
+	}
+	i, err := newILO(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := i.password(); got != "x" || err != nil {
+		t.Fatalf("systemd credential rejected: %q, %v", got, err)
 	}
 }
 
