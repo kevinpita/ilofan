@@ -1,4 +1,4 @@
-package main
+package ilofan
 
 import (
 	"cmp"
@@ -57,7 +57,8 @@ var defaultSensors = map[string]Limit{
 	"22-LOM Zone":      {58, 65},
 }
 
-func defaultConfig() Config {
+// DefaultConfig returns the controller defaults.
+func DefaultConfig() Config {
 	return Config{
 		Mode:           "observe",
 		Socket:         "/run/ilofan/ilofan.sock",
@@ -75,8 +76,9 @@ func defaultConfig() Config {
 	}
 }
 
-func loadConfig(path string) (*Config, error) {
-	c := defaultConfig()
+// LoadConfig reads and validates a JSON configuration file.
+func LoadConfig(path string) (*Config, error) {
+	c := DefaultConfig()
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err

@@ -1,4 +1,4 @@
-package main
+package ilofan
 
 import (
 	"context"
@@ -122,7 +122,7 @@ func (d *Daemon) tick(ctx context.Context) {
 		slog.Error("thermal read failed", "err", err)
 		a = Assessment{Level: Danger, Reasons: []string{"thermal read failed: " + err.Error()}}
 	} else {
-		a = assess(t, d.cfg.Sensors)
+		a = Assess(t, d.cfg.Sensors)
 	}
 	if d.state.Commanded >= 0 && len(a.Fans) == 2 && !d.settled(a.Fans, d.state.Commanded) {
 		slog.Warn("fans drifted from commanded speed", "commanded", d.state.Commanded, "fans", a.Fans)
@@ -135,7 +135,7 @@ func (d *Daemon) tick(ctx context.Context) {
 			r.ReadErrors++
 		} else {
 			r.LastRead = time.Now()
-			r.Temps = temperatures(t)
+			r.Temps = t.Readings()
 		}
 		r.Level, r.Reasons, r.Fans = a.Level.String(), a.Reasons, a.Fans
 		r.Override, r.Manual = d.state.Override, d.state.Manual
@@ -186,7 +186,7 @@ func (d *Daemon) write(ctx context.Context, percent int) ([]float64, error) {
 		if err != nil {
 			continue
 		}
-		fans = assess(t, nil).Fans
+		fans = Assess(t, nil).Fans
 		if len(fans) == 2 && d.settled(fans, percent) {
 			return fans, nil
 		}
@@ -219,17 +219,7 @@ func (d *Daemon) shutdown() {
 		slog.Warn("released fans, readback failed", "err", err)
 		return
 	}
-	slog.Info("released fans to firmware control", "fans", assess(t, nil).Fans)
-}
-
-func temperatures(t Thermal) map[string]float64 {
-	m := map[string]float64{}
-	for _, s := range t.Temperatures {
-		if s.Status.State == "Enabled" && s.ReadingCelsius != nil {
-			m[s.Name] = *s.ReadingCelsius
-		}
-	}
-	return m
+	slog.Info("released fans to firmware control", "fans", Assess(t, nil).Fans)
 }
 
 func (d *Daemon) send(ctx context.Context, r request) error {
@@ -254,7 +244,7 @@ func (d *Daemon) controlHandler() http.Handler {
 		return request{override: Released}, nil
 	}))
 	mux.HandleFunc("POST /set", d.handle(func(r *http.Request) (request, error) {
-		p, err := parsePercent(r.URL.Query().Get("percent"))
+		p, err := ParsePercent(r.URL.Query().Get("percent"))
 		return request{override: Manual, percent: p}, err
 	}))
 	return mux
@@ -275,7 +265,8 @@ func (d *Daemon) handle(parse func(*http.Request) (request, error)) http.Handler
 	}
 }
 
-func parsePercent(s string) (int, error) {
+// ParsePercent accepts an integer fan percentage from 0 through 100.
+func ParsePercent(s string) (int, error) {
 	p, err := strconv.Atoi(s)
 	if err != nil || p < 0 || p > 100 {
 		return 0, fmt.Errorf("percent must be an integer from 0 to 100, got %q", s)
@@ -322,8 +313,9 @@ func unix(t time.Time) int64 {
 	return t.Unix()
 }
 
-func runDaemon(ctx context.Context, cfg *Config) error {
-	dev, err := newILO(cfg)
+// RunDaemon runs the controller and its API until the context is cancelled.
+func RunDaemon(ctx context.Context, cfg *Config) error {
+	dev, err := NewILO(cfg)
 	if err != nil {
 		return err
 	}

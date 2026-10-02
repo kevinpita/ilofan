@@ -9,7 +9,7 @@ Before you start, flash the patched iLO 4 firmware from [kendallgoto/ilo4_unlock
 1. Install the binary:
 
    ```sh
-   go install github.com/kevinpita/ilofan@latest
+   go install github.com/kevinpita/ilofan/cmd/ilofan@latest
    sudo install -m 755 "$(go env GOPATH)/bin/ilofan" /usr/local/bin/
    ```
 
@@ -42,7 +42,7 @@ Check it with `ilofan status` and `journalctl -u ilofan`.
 
 ## NixOS
 
-Add the flake and enable the module. Generate the values once with `ilofan setup -config /tmp/ilofan.json`, or see [CONFIG.md](CONFIG.md#finding-the-ilo-keys).
+Add the flake and enable the module. Generate the values once with `ilofan setup --config /tmp/ilofan.json`, or see [CONFIG.md](CONFIG.md#finding-the-ilo-keys).
 
 ```nix
 {
@@ -76,4 +76,4 @@ Add the flake and enable the module. Generate the values once with `ilofan setup
 
 ## Other service managers
 
-Run `ilofan daemon -config /etc/ilofan/config.json` as a user that can read `passwordFile`. The daemon creates its control socket at `/run/ilofan/ilofan.sock` by default, so that directory must exist and be writable by the daemon.
+Run `ilofan daemon --config /etc/ilofan/config.json` as a user that can read `passwordFile`. The daemon creates its control socket at `/run/ilofan/ilofan.sock` by default, so that directory must exist and be writable by the daemon.

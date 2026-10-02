@@ -1,4 +1,4 @@
-package main
+package ilofan
 
 import (
 	"bytes"
@@ -19,6 +19,45 @@ import (
 
 	"golang.org/x/crypto/ssh"
 )
+
+// TLSFingerprint reads the HTTPS certificate fingerprint without verifying it.
+// The caller must confirm this fingerprint before it is trusted.
+func TLSFingerprint(host string) (string, error) {
+	dialer := &net.Dialer{Timeout: 10 * time.Second}
+	conn, err := tls.DialWithDialer(dialer, "tcp", net.JoinHostPort(host, "443"), &tls.Config{InsecureSkipVerify: true})
+	if err != nil {
+		return "", err
+	}
+	defer conn.Close()
+	sum := sha256.Sum256(conn.ConnectionState().PeerCertificates[0].Raw)
+	return formatFingerprint(sum[:]), nil
+}
+
+func formatFingerprint(sum []byte) string {
+	parts := make([]string, len(sum))
+	for i, b := range sum {
+		parts[i] = fmt.Sprintf("%02X", b)
+	}
+	return strings.Join(parts, ":")
+}
+
+// SSHHostKey reads the SSH host key without logging in or verifying it.
+// The caller must confirm this key before it is trusted.
+func SSHHostKey(host string) (ssh.PublicKey, error) {
+	var key ssh.PublicKey
+	capture := func(_ string, _ net.Addr, k ssh.PublicKey) error {
+		key = k
+		return nil
+	}
+	client, err := ssh.Dial("tcp", net.JoinHostPort(host, "22"), sshConfig("ilofan-setup", nil, capture))
+	if client != nil {
+		client.Close()
+	}
+	if key == nil {
+		return nil, err
+	}
+	return key, nil
+}
 
 const prompt = "</>hpiLO->"
 
@@ -49,7 +88,8 @@ type ILO struct {
 	http      *http.Client
 }
 
-func newILO(c *Config) (*ILO, error) {
+// NewILO creates a client with the configured credentials and pinned keys.
+func NewILO(c *Config) (*ILO, error) {
 	i := &ILO{host: c.Host, username: c.Username, passwordFile: c.PasswordFile, checkMode: !c.passwordFromSystemd}
 	if c.HostKey != "" {
 		key, _, _, _, err := ssh.ParseAuthorizedKey([]byte(c.HostKey))
@@ -178,11 +218,9 @@ func sshConfig(user string, auth []ssh.AuthMethod, hostKey ssh.HostKeyCallback) 
 		HostKeyAlgorithms: []string{ssh.KeyAlgoRSA},
 		Timeout:           10 * time.Second,
 		// iLO 4 only offers these legacy algorithms.
-		Config: ssh.Config{
-			KeyExchanges: []string{"diffie-hellman-group14-sha1"},
-			Ciphers:      []string{"aes256-ctr", "aes128-ctr"},
-			MACs:         []string{"hmac-sha2-256", "hmac-sha1"},
-		},
+		KeyExchanges: []string{"diffie-hellman-group14-sha1"},
+		Ciphers:      []string{"aes256-ctr", "aes128-ctr"},
+		MACs:         []string{"hmac-sha2-256", "hmac-sha1"},
 	}
 }
 

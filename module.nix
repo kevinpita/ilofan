@@ -67,7 +67,7 @@ in
       wants = [ "network-online.target" ];
       after = [ "network-online.target" ];
       serviceConfig = {
-        ExecStart = "${lib.getExe cfg.package} daemon -config ${configFile}";
+        ExecStart = "${lib.getExe cfg.package} daemon --config ${configFile}";
         User = "ilofan";
         Group = "ilofan";
         LoadCredential = [ "password:${cfg.passwordFile}" ];

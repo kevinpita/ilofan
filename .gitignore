@@ -1,3 +1,7 @@
 result
+/bin/
+/coverage.out
+/.direnv/
+/.golangci-lint-report.json
 .devenv*
 devenv.local.nix

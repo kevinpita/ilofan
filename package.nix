@@ -3,7 +3,8 @@ buildGo127Module {
   pname = "ilofan";
   version = "0.1.0";
   src = lib.cleanSource ./.;
-  vendorHash = "sha256-1TZBU7538JaRZbNe4dWrtwVmLNWO+dyVIRSmsOvNtxM=";
+  subPackages = [ "cmd/ilofan" ];
+  vendorHash = "sha256-1ARAJQfeL1xGNmMIPFj+Jye4fKmO7MKwp+5qQmQRBCU=";
   env.CGO_ENABLED = 0;
   ldflags = [
     "-s"

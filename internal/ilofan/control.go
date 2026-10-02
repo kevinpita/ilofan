@@ -1,4 +1,4 @@
-package main
+package ilofan
 
 import (
 	"fmt"
@@ -24,6 +24,17 @@ func (l Level) String() string {
 type Thermal struct {
 	Temperatures []Temperature
 	Fans         []Fan
+}
+
+// Readings returns the available temperature readings by sensor name.
+func (t Thermal) Readings() map[string]float64 {
+	m := map[string]float64{}
+	for _, s := range t.Temperatures {
+		if s.Status.State == "Enabled" && s.ReadingCelsius != nil {
+			m[s.Name] = *s.ReadingCelsius
+		}
+	}
+	return m
 }
 
 type Temperature struct {
@@ -65,7 +76,8 @@ func (a *Assessment) raise(l Level, format string, args ...any) {
 	a.Reasons = append(a.Reasons, fmt.Sprintf(format, args...))
 }
 
-func assess(t Thermal, limits map[string]Limit) Assessment {
+// Assess checks thermal readings against the configured sensor limits.
+func Assess(t Thermal, limits map[string]Limit) Assessment {
 	a := Assessment{Temps: map[string]float64{}}
 
 	temps := map[string]int{}

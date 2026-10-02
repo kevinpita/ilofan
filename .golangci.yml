@@ -1,0 +1,145 @@
+version: "2"
+
+run:
+  timeout: 5m
+  modules-download-mode: mod
+
+issues:
+  fix: true
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  uniq-by-line: false
+
+output:
+  formats:
+    text:
+      path: stdout
+    json:
+      path: .golangci-lint-report.json
+  sort-order:
+    - file
+    - linter
+
+linters:
+  exclusions:
+    warn-unused: true
+  default: none
+  enable:
+    - asasalint
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - canonicalheader
+    - containedctx
+    - contextcheck
+    - durationcheck
+    - dupword
+    - embeddedstructfieldcheck
+    - err113
+    - errcheck
+    - errchkjson
+    - errname
+    - errorlint
+    - exhaustive
+    - exptostd
+    - fatcontext
+    - forbidigo
+    - funcorder
+    - gocheckcompilerdirectives
+    - gochecknoinits
+    - gocognit
+    - gocritic
+    - gocyclo
+    - godoclint
+    - godot
+    - goprintffuncname
+    - gosec
+    - govet
+    - iface
+    - inamedparam
+    - ineffassign
+    - interfacebloat
+    - iotamixing
+    - ireturn
+    - makezero
+    - mirror
+    - misspell
+    - modernize
+    - musttag
+    - nilerr
+    - nilnesserr
+    - nilnil
+    - noctx
+    - nolintlint
+    - paralleltest
+    - perfsprint
+    - predeclared
+    - promlinter
+    - protogetter
+    - reassign
+    - recvcheck
+    - revive
+    - rowserrcheck
+    - sloglint
+    - sqlclosecheck
+    - staticcheck
+    - tagalign
+    - testableexamples
+    - testifylint
+    - thelper
+    - unconvert
+    - unparam
+    - unqueryvet
+    - unused
+    - usestdlibvars
+    - usetesting
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+    funcorder:
+      function: true
+    godoclint:
+      default: none
+      enable:
+        - single-pkg-doc
+        - deprecated
+        - start-with-name
+    govet:
+      enable:
+        - atomicalign
+        - nilness
+        - reflectvaluecompare
+        - shadow
+        - sortslice
+        - unusedwrite
+    staticcheck:
+      dot-import-whitelist: []
+      http-status-code-whitelist: []
+      checks:
+        - all
+        - "-ST1020" # revive owns exported function documentation.
+        - "-ST1022" # revive owns exported value documentation.
+    paralleltest:
+      ignore-missing: true
+      check-cleanup: true
+    unused:
+      field-writes-are-uses: false
+      local-variables-are-used: false
+
+formatters:
+  exclusions:
+    generated: strict
+    warn-unused: true
+  enable:
+    - gofumpt
+    - goimports
+  settings:
+    gofumpt:
+      extra:
+        group-params: true
+        clothe-returns: true
+        balance-calls: true
+    goimports:
+      local-prefixes:
+        - github.com/kevinpita/ilofan

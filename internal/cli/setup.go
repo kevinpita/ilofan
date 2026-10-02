@@ -1,15 +1,12 @@
-package main
+package cli
 
 import (
 	"bufio"
 	"context"
-	"crypto/sha256"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,6 +14,8 @@ import (
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/term"
+
+	"github.com/kevinpita/ilofan/internal/ilofan"
 )
 
 // setupFile is what setup writes. Everything else keeps its default.
@@ -72,7 +71,7 @@ func runSetup(configPath string, in io.Reader, out io.Writer) error {
 	dir := filepath.Dir(configPath)
 	passwordPath := filepath.Join(dir, "password")
 
-	if fileExists(configPath) {
+	if _, err := os.Stat(configPath); err == nil {
 		ok, err := p.confirm(configPath + " exists. Overwrite?")
 		if err != nil || !ok {
 			return errors.New("setup cancelled")
@@ -92,11 +91,11 @@ func runSetup(configPath string, in io.Reader, out io.Writer) error {
 	}
 
 	fmt.Fprintf(out, "\nReading the keys of %s...\n", host)
-	fingerprint, err := tlsFingerprint(host)
+	fingerprint, err := ilofan.TLSFingerprint(host)
 	if err != nil {
 		return fmt.Errorf("HTTPS: %w", err)
 	}
-	hostKey, err := sshHostKey(host)
+	hostKey, err := ilofan.SSHHostKey(host)
 	if err != nil {
 		return fmt.Errorf("SSH: %w", err)
 	}
@@ -146,9 +145,9 @@ func testLogin(f setupFile, password string, out io.Writer) error {
 	}
 	tmp.Close()
 
-	c := defaultConfig()
+	c := ilofan.DefaultConfig()
 	c.Host, c.Username, c.PasswordFile, c.HostKey, c.TLSFingerprint = f.Host, f.Username, tmp.Name(), f.HostKey, f.TLSFingerprint
-	ilo, err := newILO(&c)
+	ilo, err := ilofan.NewILO(&c)
 	if err != nil {
 		return err
 	}
@@ -160,9 +159,9 @@ func testLogin(f setupFile, password string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	a := assess(t, c.Sensors)
-	fmt.Fprintf(out, "ok, %d sensors, fans %v%%\n", len(temperatures(t)), a.Fans)
-	if a.Level == Danger {
+	a := ilofan.Assess(t, c.Sensors)
+	fmt.Fprintf(out, "ok, %d sensors, fans %v%%\n", len(t.Readings()), a.Fans)
+	if a.Level == ilofan.Danger {
 		fmt.Fprintf(out, "  The default sensor list does not match this machine: %s\n", strings.Join(a.Reasons, "; "))
 		fmt.Fprintln(out, "  Adjust sensors in the config before using control mode.")
 	}
@@ -198,40 +197,4 @@ func writeMode(path string, data []byte, mode os.FileMode) error {
 		return err
 	}
 	return os.Chmod(path, mode)
-}
-
-func tlsFingerprint(host string) (string, error) {
-	dialer := &net.Dialer{Timeout: 10 * time.Second}
-	conn, err := tls.DialWithDialer(dialer, "tcp", net.JoinHostPort(host, "443"), &tls.Config{InsecureSkipVerify: true})
-	if err != nil {
-		return "", err
-	}
-	defer conn.Close()
-	sum := sha256.Sum256(conn.ConnectionState().PeerCertificates[0].Raw)
-	return formatFingerprint(sum[:]), nil
-}
-
-func formatFingerprint(sum []byte) string {
-	parts := make([]string, len(sum))
-	for i, b := range sum {
-		parts[i] = fmt.Sprintf("%02X", b)
-	}
-	return strings.Join(parts, ":")
-}
-
-// sshHostKey completes the key exchange without logging in.
-func sshHostKey(host string) (ssh.PublicKey, error) {
-	var key ssh.PublicKey
-	capture := func(_ string, _ net.Addr, k ssh.PublicKey) error {
-		key = k
-		return nil
-	}
-	client, err := ssh.Dial("tcp", net.JoinHostPort(host, "22"), sshConfig("ilofan-setup", nil, capture))
-	if client != nil {
-		client.Close()
-	}
-	if key == nil {
-		return nil, err
-	}
-	return key, nil
 }

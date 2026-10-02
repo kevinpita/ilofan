@@ -40,7 +40,7 @@ Built and tested on a ProLiant ML310e Gen8 v2.
 ## Install
 
 ```sh
-go install github.com/kevinpita/ilofan@latest
+go install github.com/kevinpita/ilofan/cmd/ilofan@latest
 sudo install -m 755 "$(go env GOPATH)/bin/ilofan" /usr/local/bin/
 ```
 

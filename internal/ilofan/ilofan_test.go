@@ -1,11 +1,10 @@
-package main
+package ilofan
 
 import (
 	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -17,7 +16,8 @@ import (
 	"time"
 )
 
-func ptr(v float64) *float64 { return &v }
+//go:fix inline
+func ptr(v float64) *float64 { return new(v) }
 
 // healthy returns every default sensor 20 °C below its warning threshold and
 // both fans at the given speed.
@@ -25,14 +25,14 @@ func healthy(fan float64) Thermal {
 	var t Thermal
 	for name, l := range defaultSensors {
 		t.Temperatures = append(t.Temperatures, Temperature{
-			Name: name, ReadingCelsius: ptr(l.Warning - 20), Status: Status{"Enabled", "OK"},
+			Name: name, ReadingCelsius: new(l.Warning - 20), Status: Status{"Enabled", "OK"},
 		})
 	}
 	t.Temperatures = append(t.Temperatures, Temperature{
 		Name: "04-HD Max", ReadingCelsius: ptr(0), Status: Status{State: "Absent"},
 	})
 	for _, name := range fanNames {
-		t.Fans = append(t.Fans, Fan{name, ptr(fan), "Percent", Status{"Enabled", "OK"}})
+		t.Fans = append(t.Fans, Fan{name, new(fan), "Percent", Status{"Enabled", "OK"}})
 	}
 	return t
 }
@@ -48,7 +48,7 @@ func with(t Thermal, name string, f func(*Temperature)) Thermal {
 }
 
 func testConfig() *Config {
-	c := defaultConfig()
+	c := DefaultConfig()
 	c.Host, c.Username, c.PasswordFile, c.InsecureTLS, c.Mode, c.HostKey = "ilo", "admin", "/dev/null", true, "control", "ssh-rsa AAAA"
 	if err := c.validate(); err != nil {
 		panic(err)
@@ -65,7 +65,7 @@ func TestAssess(t *testing.T) {
 	}{
 		{"healthy runs at minimum", healthy(9), Healthy, 9},
 		{"hotter CPU follows its curve", with(healthy(9), "02-CPU", func(s *Temperature) { s.ReadingCelsius = ptr(53) }), Healthy, 25},
-		{"curve interpolates between points", with(healthy(9), "02-CPU", func(s *Temperature) { s.ReadingCelsius = ptr(50.5) }), Healthy, 20},
+		{"curve interpolates between points", with(healthy(9), "02-CPU", func(s *Temperature) { s.ReadingCelsius = new(50.5) }), Healthy, 20},
 		{"highest curve wins", with(with(healthy(9), "02-CPU", func(s *Temperature) { s.ReadingCelsius = ptr(48) }),
 			"01-Inlet Ambient", func(s *Temperature) { s.ReadingCelsius = ptr(31) }), Healthy, 25},
 		{"warning adds 10 over the fastest fan", with(healthy(45), "02-CPU", func(s *Temperature) { s.ReadingCelsius = ptr(60) }), Warning, 55},
@@ -91,7 +91,7 @@ func TestAssess(t *testing.T) {
 	c := testConfig()
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			a := assess(tc.in, c.Sensors)
+			a := Assess(tc.in, c.Sensors)
 			if a.Level != tc.level {
 				t.Fatalf("level %v, want %v (%v)", a.Level, tc.level, a.Reasons)
 			}
@@ -113,7 +113,7 @@ func TestThermalRejectsBooleanReading(t *testing.T) {
 func TestNextHysteresis(t *testing.T) {
 	c := testConfig()
 	cpu := func(v float64) Assessment {
-		return assess(with(healthy(9), "02-CPU", func(s *Temperature) { s.ReadingCelsius = ptr(v) }), c.Sensors)
+		return Assess(with(healthy(9), "02-CPU", func(s *Temperature) { s.ReadingCelsius = new(v) }), c.Sensors)
 	}
 	s := State{Override: Auto, Commanded: -1}
 	if got := s.next(cpu(40), c); got != 9 {
@@ -143,8 +143,8 @@ func TestNextHysteresis(t *testing.T) {
 
 func TestNextOverrides(t *testing.T) {
 	c := testConfig()
-	calm := assess(healthy(9), c.Sensors)
-	hot := assess(with(healthy(9), "02-CPU", func(s *Temperature) { s.ReadingCelsius = ptr(70) }), c.Sensors)
+	calm := Assess(healthy(9), c.Sensors)
+	hot := Assess(with(healthy(9), "02-CPU", func(s *Temperature) { s.ReadingCelsius = ptr(70) }), c.Sensors)
 
 	s := State{Override: Manual, Manual: 30, Commanded: -1}
 	if got := s.next(calm, c); got != 30 {
@@ -170,8 +170,8 @@ func TestPWM(t *testing.T) {
 		}
 	}
 	for _, bad := range []string{"-1", "101", "1.5", "x", ""} {
-		if _, err := parsePercent(bad); err == nil {
-			t.Errorf("parsePercent(%q) accepted", bad)
+		if _, err := ParsePercent(bad); err == nil {
+			t.Errorf("ParsePercent(%q) accepted", bad)
 		}
 	}
 }
@@ -312,8 +312,7 @@ func TestObserveNeverWrites(t *testing.T) {
 func TestRequestsAreSerialized(t *testing.T) {
 	f := &fakeILO{fan: 9}
 	d := daemonWith(f, "control")
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	go d.loop(ctx)
 	var wg sync.WaitGroup
 	for _, p := range []int{30, 50, 70} {
@@ -355,7 +354,7 @@ func TestLoadConfigCurves(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.json")
 	write := func(body string) (*Config, error) {
 		os.WriteFile(path, []byte(`{"host":"ilo","username":"u","passwordFile":"x","insecureTLS":true,`+body+`}`), 0o600)
-		return loadConfig(path)
+		return LoadConfig(path)
 	}
 	c, err := write(`"curves":{"02-CPU":[{"temp":60,"percent":50},{"temp":20,"percent":10},{"temp":30,"percent":12},{"temp":40,"percent":20}]}`)
 	if err != nil {
@@ -372,17 +371,6 @@ func TestLoadConfigCurves(t *testing.T) {
 	}
 	if _, err := write(`"curves":{"02-CPU":[{"temp":20,"percent":110}]}`); err == nil {
 		t.Fatal("accepted a percent above 100")
-	}
-}
-
-func TestParseInterspersed(t *testing.T) {
-	for _, args := range [][]string{{"30", "-socket", "s"}, {"-socket", "s", "30"}} {
-		flags := flag.NewFlagSet("set", flag.ContinueOnError)
-		socket := flags.String("socket", "default", "")
-		got := parseInterspersed(flags, args)
-		if *socket != "s" || !slices.Equal(got, []string{"30"}) {
-			t.Fatalf("%q: socket %q, positional %q", args, *socket, got)
-		}
 	}
 }
 
@@ -408,31 +396,6 @@ func TestReleaseClearsCommanded(t *testing.T) {
 	}
 }
 
-func TestWriteSetup(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "etc")
-	f := setupFile{Host: "ilo", Username: "admin", PasswordFile: filepath.Join(dir, "password"), HostKey: "ssh-rsa AAAA", TLSFingerprint: "AA", Mode: "observe"}
-	config := filepath.Join(dir, "config.json")
-	if err := writeSetup(config, f, "hunter2"); err != nil {
-		t.Fatal(err)
-	}
-	for path, want := range map[string]os.FileMode{config: 0o644, f.PasswordFile: 0o600} {
-		if info, _ := os.Stat(path); info.Mode().Perm() != want {
-			t.Errorf("%s has mode %o, want %o", path, info.Mode().Perm(), want)
-		}
-	}
-	data, _ := os.ReadFile(config)
-	if strings.Contains(string(data), "hunter2") {
-		t.Fatal("password written into the config")
-	}
-	c, err := loadConfig(config)
-	if err != nil {
-		t.Fatalf("written config does not load: %v", err)
-	}
-	if got, err := (&ILO{passwordFile: c.PasswordFile, checkMode: true}).password(); got != "hunter2" || err != nil {
-		t.Fatalf("password file reads %q, %v", got, err)
-	}
-}
-
 func TestSystemdCredentialWins(t *testing.T) {
 	dir := t.TempDir()
 	// System services get credentials with mode 0440.
@@ -440,11 +403,11 @@ func TestSystemdCredentialWins(t *testing.T) {
 	t.Setenv("CREDENTIALS_DIRECTORY", dir)
 	path := filepath.Join(dir, "config.json")
 	os.WriteFile(path, []byte(`{"host":"ilo","username":"u","insecureTLS":true}`), 0o600)
-	c, err := loadConfig(path)
+	c, err := LoadConfig(path)
 	if err != nil || c.PasswordFile != filepath.Join(dir, "password") {
 		t.Fatalf("credential not used: %v %+v", err, c)
 	}
-	i, err := newILO(c)
+	i, err := NewILO(c)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -453,14 +416,7 @@ func TestSystemdCredentialWins(t *testing.T) {
 	}
 }
 
-func TestPrompterDefaults(t *testing.T) {
-	p := prompter{bufio.NewReader(strings.NewReader("\n192.168.1.148\n")), io.Discard}
-	if got, _ := p.ask("user", "Administrator"); got != "Administrator" {
-		t.Fatalf("empty answer gave %q", got)
-	}
-	if got, _ := p.ask("host", ""); got != "192.168.1.148" {
-		t.Fatalf("got %q", got)
-	}
+func TestFormatFingerprint(t *testing.T) {
 	if got := formatFingerprint([]byte{0x2d, 0xf7, 0x05}); got != "2D:F7:05" {
 		t.Fatalf("fingerprint %q", got)
 	}
